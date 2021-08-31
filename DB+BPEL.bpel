@@ -1,0 +1,90 @@
+<?xml version = "1.0" encoding = "UTF-8" ?>
+<!--
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  Oracle JDeveloper BPEL Designer 
+  
+  Created: Mon Aug 30 09:45:02 IST 2021
+  Author:  oracle
+  Type: BPEL 2.0 Process
+  Purpose: Synchronous BPEL Process
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+-->
+<process name="DB_BPEL"
+               targetNamespace="http://xmlns.oracle.com/AmitDBapp/DBsamples/DB_BPEL"
+               xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+               xmlns:client="http://xmlns.oracle.com/AmitDBapp/DBsamples/DB_BPEL"
+               xmlns:ora="http://schemas.oracle.com/xpath/extension"
+               xmlns:ui="http://xmlns.oracle.com/soa/designer"
+               xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:bpel="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:ns1="http://xmlns.oracle.com/pcbpel/adapter/db/AmitDBapp/DBsamples/GetData"
+         xmlns:ns2="http://www.example.org" xmlns:ns3="http://xmlns.oracle.com/pcbpel/adapter/db/top/GetData"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <import ui:processWSDL="true" namespace="http://xmlns.oracle.com/AmitDBapp/DBsamples/DB_BPEL" location="../WSDLs/DB_BPEL.wsdl" importType="http://schemas.xmlsoap.org/wsdl/"/>
+    <!-- 
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        PARTNERLINKS                                                      
+        List of services participating in this BPEL process               
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    --> 
+  <partnerLinks>
+    <!-- 
+      The 'client' role represents the requester of this service. It is 
+      used for callback. The location and correlation information associated
+      with the client role are automatically set using WS-Addressing.
+    -->
+    <partnerLink name="db_bpel_client" partnerLinkType="client:DB_BPEL" myRole="DB_BPELProvider"/>
+    <partnerLink name="GetData" partnerLinkType="ns1:GetData_plt" partnerRole="GetData_role"/>
+  </partnerLinks>
+
+  <!-- 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      VARIABLES                                                        
+      List of messages and XML documents used within this BPEL process 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  -->
+  <variables>
+    <!-- Reference to the message passed as input during initiation -->
+    <variable name="inputVariable" messageType="client:DB_BPELRequestMessage"/>
+
+    <!-- Reference to the message that will be returned to the requester-->
+    <variable name="outputVariable" messageType="client:DB_BPELResponseMessage"/>
+    <variable name="Invoke_DB_GetDataSelect_InputVariable" messageType="ns1:GetDataSelect_inputParameters"/>
+    <variable name="Invoke_DB_GetDataSelect_OutputVariable" messageType="ns1:SoaTrainee1Collection_msg"/>
+  </variables>
+
+  <!-- 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+     ORCHESTRATION LOGIC                                               
+     Set of activities coordinating the flow of messages across the    
+     services integrated within this business process                  
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  -->
+  <sequence name="main">
+
+    <!-- Receive input from requestor. (Note: This maps to operation defined in DB_BPEL.wsdl) -->
+    <receive name="receiveInput" partnerLink="db_bpel_client" portType="client:DB_BPEL" operation="process" variable="inputVariable" createInstance="yes"/>
+    <assign name="Assign_in">
+      <copy>
+        <from>$inputVariable.payload/ns2:T_ID</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0">$Invoke_DB_GetDataSelect_InputVariable.GetDataSelect_inputParameters/ns3:pTId</to>
+      </copy>
+    </assign>
+    <invoke name="Invoke_DB" partnerLink="GetData" portType="ns1:GetData_ptt"
+            operation="GetDataSelect" inputVariable="Invoke_DB_GetDataSelect_InputVariable"
+            outputVariable="Invoke_DB_GetDataSelect_OutputVariable" bpelx:invokeAsDetail="no"/>
+    <assign name="Assign_out">
+      <copy>
+        <from>$Invoke_DB_GetDataSelect_OutputVariable.SoaTrainee1Collection/ns3:SoaTrainee1/ns3:tFname</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0">$outputVariable.payload/ns2:T_FNAME</to>
+      </copy>
+      <copy>
+        <from>$Invoke_DB_GetDataSelect_OutputVariable.SoaTrainee1Collection/ns3:SoaTrainee1/ns3:tLname</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0">$outputVariable.payload/ns2:T_LNAME</to>
+      </copy>
+    </assign>
+    <!-- Generate reply to synchronous request -->
+    <reply name="replyOutput" partnerLink="db_bpel_client" portType="client:DB_BPEL" operation="process" variable="outputVariable"/>
+  </sequence>
+</process>
